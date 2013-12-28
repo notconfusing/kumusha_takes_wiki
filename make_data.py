@@ -92,5 +92,3 @@ def getCitiesFromWikidata():
     with open("countries.json") as f:
         json.dump(countries, f)
     print total
-
-getCitiesFromWikidata()
