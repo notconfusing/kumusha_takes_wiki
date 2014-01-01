@@ -25,12 +25,12 @@ class category_inspection():
     def uniqueify_cats(self):
         before = len(self.base_categories)
         self.base_categories = list(set(self.base_categories))
-        print lang + ': slimmed from ' + str(before) + 'cats to ' + str(len(self.base_categories))
+        print 'slimmed from ' + str(before) + ' cats to ' + str(len(self.base_categories))
 
     def uniqueify_arts(self):
         before = len(self.accepted_articles)
         self.accepted_articles = list(set(self.accepted_articles))
-        print 'slimmed from ' + str(before) + 'articles to ' + str(len(self.accepted_articles))
+        print 'slimmed from ' + str(before) + ' articles to ' + str(len(self.accepted_articles))
 
 
 def choose_from_list(ci,get_arts=False,get_subcats=False):
@@ -84,7 +84,7 @@ def choose_from_list(ci,get_arts=False,get_subcats=False):
             if get_subcats:
                 for subsubcat in will_have:
                     choose_from_list(ci, get_subcats=subsubcat)
-            return
+        seen.extend(unseen_gen)
     except ValueError:
         print 'bad entry try again'
         choose_from_list(ci, get_arts=get_arts, get_subcats=get_subcats)
@@ -96,107 +96,44 @@ def in_or_out(negate, num, want):
         return num not in want
     else:
         return num in want
-        
+
+def get_cats_on_command(ci, lang):
+    inp = raw_input(lang + " : Enter a base category to search. Empty input to continue")
+    if inp:
+        ci.base_categories.append(pywikibot.Category(wikipedias[lang], inp))
+        get_cats_on_command(lang)
+    if not inp:
+        return        
 
 def make_base_categories(ci, predefined=False):
-    seen = set()
-    if not predefined:
-        def get_inp(lang):
-            inp = raw_input(lang + " : Enter a base category to search. Empty input to continue")
-            if inp:
-                ci.base_categories.append(pywikibot.Category(wikipedias[lang], inp))
-                get_inp(lang)
-            if not inp:
-                return
-            
+    if not predefined: 
         for lang in langs:
-            get_inp(lang)
+            get_cats_on_command(ci, lang)
     else:
         for lang, inp in predefined.iteritems():
             ci.base_categories.append(pywikibot.Category(wikipedias[lang], inp))
 
-        
-    print 'we got these categories'
+    print 'we have these categories'
     print ci.base_categories
     inp = raw_input('shall we look into their subcategories?')
     if inp:
-        def all_subcats(cat):
-            try:
-                subcats = pagegenerators.SubCategoriesPageGenerator(category=cat, recurse=False)
-                scl = list(subcats)
-                if len(scl) == 0:
-                    return
-                scl_numbered = zip(range(1,len(scl)+1),  scl)
-                scul = map(lambda tit: u'https://' +lang+ u'.wikipedia.org/wiki/'+ tit.title(asLink=True),scl)
-                scul_numbered = zip(range(1,len(scul)+1),  scul)
-                #its difficult to read french urls with diacritics
-                for tup in scl_numbered:
-                    print tup[0], tup[1]
-                want = raw_input('which numbers do you want, comma separated (a all or n negate)')
-                if want:
-                    if want == 'a':
-                        ci.base_categories[lang].extend(scl)
-                        return
-                    
-                    negate = False
-                    if want.startswith('n'):
-                        negate = True
-                        want = want[1:] 
-                        
-                    want = map(lambda a: int(a), want.split(','))
-                    will_have_tups = filter(lambda tup: in_or_out(negate, tup[0], want), scl_numbered)
-                    will_have = map(lambda tup: tup[1], will_have_tups)
-                    ci.base_categories[lang].extend(will_have)
-                    for subsubcat in will_have:
-                        if not subsubcat in seen:
-                            seen.add(subsubcat)
-                            all_subcats(subsubcat)
-            except ValueError:
-                print 'bad entry try again'
-                all_subcats(cat)
-                
-                
-        print 'processing subcats'
-        for lang, catlist in ci.base_categories.iteritems():
-            print 'working on ' + lang
-            for cat in catlist:
-                if not cat in seen:
-                    print 'starting from', cat
-                    seen.add(cat)
-                    all_subcats(cat)
+        counter = 0 
+        for cat in ci.base_categories:
+            print 'working on' + str(cat)
+            print str(counter) + 'of ' + str(len(ci.base_categories))
+            choose_from_list(ci, get_subcats=cat)
+            counter += 1
             
     print 'final list:'
     ci.uniqueify_cats()
     print ci.base_categories
 
 def inspect_articles(ci):
-    for lang, categories in ci.base_categories.iteritems():
-        for category in categories:
-                al = list(category.articles())
-                if not al:
-                    continue
-                aul = map(lambda tit: 'https://'+lang+'.wikipedia.org/wiki/'+tit.title(asUrl=True),al)
-                aul_numbered = zip(range(1,len(aul)+1),  aul)
-                al_numbered = zip(range(1,len(al)+1),  al)
-                for tup in al_numbered:
-                    print tup[0], tup[1]
-                want = raw_input('which numbers do you want, comma separated, (a for all, n to negate)')
-                if want:
-                    if want == 'a':
-                        ci.accepted_articles.extend(al)
-                        continue
-                    
-                    negate = False
-                    if want.startswith('n'):
-                        negate = True
-                        want = want[1:]    
-                                    
-                    want = map(lambda a: int(a), want.split(','))
-
-                    will_have_tups = filter(lambda tup: in_or_out(negate, tup[0], want), al_numbered)
-                    will_have = map(lambda tup: tup[1], will_have_tups)
-                    print will_have
-                    ci.accepted_articles.extend(will_have)
+    counter = 0
+    for cat in ci.base_categories:
+        print str(counter) + 'of ' + str(len(ci.accepted_articles))
+        choose_from_list(ci, get_arts=cat)
+        counter += 1
     
     print 'final list:'
     ci.uniqueify_arts()
